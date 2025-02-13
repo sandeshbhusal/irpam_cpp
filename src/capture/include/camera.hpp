@@ -43,15 +43,21 @@ class CameraManager
 {
 private:
     std::vector<VideoDevice> devices;
+    CameraManager();
 
 public:
-    explicit CameraManager();
+    CameraManager(const CameraManager &) = delete;
+    CameraManager &operator=(const CameraManager &) = delete;
+
+    static CameraManager &getInstance()
+    {
+        static CameraManager instance;
+        return instance;
+    }
+
     std::shared_ptr<VideoDevice &> get_camera_from_index(int);
     std::shared_ptr<VideoDevice &> get_camera_from_path(const char *);
 
     int getNumberOfInputDevices();
 };
-
-CameraManager *getCameraManager();
-
 #endif

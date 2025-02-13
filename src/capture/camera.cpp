@@ -65,14 +65,3 @@ CameraManager::CameraManager() {
 int CameraManager::getNumberOfInputDevices() {
     return this->devices.size();
 }
-
-CameraManager* getCameraManager() {
-    static CameraManager* ptr = nullptr;
-    if (ptr == nullptr) {
-        // initialize.
-        ptr = new CameraManager();
-        return ptr;
-    } else {
-        return ptr;
-    }
-}
