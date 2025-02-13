@@ -9,67 +9,49 @@
 #include <linux/videodev2.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <memory>
 
 #include "libv4l2.h"
 #include <string.h>
 
 /**
- * @brief PictureFormat structure to hold the format of the camera.
+ * @brief Video Device Entry in the system. The path is ensured to exist.
  */
-struct PictureFormat
-{
-    uint32_t fourcc;
-    int width;
-    int height;
-    int channels;
-};
-
-/**
- * @brief Camera Definition Entry in the system. The path is ensure to exist.
- */
-class Camera
+class VideoDevice
 {
 private:
     std::string camera_path;
-    v4l2_capability cap{}; // Initialize to zero
+    std::vector<v4l2_pix_format> available_formats;
+    v4l2_capability cap;
+    int index = 0;
     int fd = -1;
 
 public:
-    ~Camera()
-    {
-        if (this->fd > -1)
-            close(this->fd);
-    }
-
-    explicit Camera(const std::string &camera_path)
-        : camera_path(camera_path)
-    {
-        if (!std::filesystem::exists(camera_path))
-            throw std::runtime_error("Camera path does not exist: " + camera_path);
-
-        this->fd = v4l2_open(camera_path.c_str(), O_RDWR);
-        if (this->fd < 0)
-            throw std::runtime_error("Failed to open camera: " + std::string(strerror(errno)));
-
-        if (v4l2_ioctl(fd, VIDIOC_QUERYCAP, &this->cap) < 0)
-            throw std::runtime_error("Failed to query camera caps: " + std::string(strerror(errno)));
-    }
-
-    bool isCaptureDevice() const
-    {
-        int input = 0;
-        if (v4l2_ioctl(fd, VIDIOC_G_INPUT, &input) < 0)
-            return false;
-        
-        return true;
-    }
-
-    const std::string getCameraPath() const
-    {
-        return this->camera_path;
-    }
+    explicit VideoDevice(const std::string &camera_path, int index);
+    bool isCaptureDevice() const;
+    const std::string getPath() const;
+    std::vector<v4l2_pix_format> getAvailableFormats() const;
 };
 
-std::vector<std::string> availableCameras();
+/**
+ * @brief Camera Manager interface. This is responsible to initialize all cameras
+ * in the system, open them and keep a reference around for the lifetime of the program.
+ *
+ *
+ */
+class CameraManager
+{
+private:
+    std::vector<VideoDevice> devices;
+
+public:
+    explicit CameraManager();
+    std::shared_ptr<VideoDevice &> get_camera_from_index(int);
+    std::shared_ptr<VideoDevice &> get_camera_from_path(const char *);
+
+    int getNumberOfInputDevices();
+};
+
+CameraManager *getCameraManager();
 
 #endif
