@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "camera.hpp"
+#include "cameramanager.hpp"
 
 TEST(checkDevices, AtLeastOneCameraPresent) {
     CameraManager& manager = CameraManager::getInstance();

@@ -7,7 +7,8 @@ enable_testing()
 add_library(
     ${PROJECT_NAME}lib
     SHARED
-    src/capture/camera.cpp
+    src/capture/cameramanager.cpp
+    src/capture/videodevice.cpp
 )
 
 target_include_directories(
