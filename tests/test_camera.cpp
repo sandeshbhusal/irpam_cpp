@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include "camera.hpp"
 
-TEST(checkTest, getcapturedevices) {
+TEST(checkDevices, AtLeastOneCameraPresent) {
     std::vector<std::string> cameras = availableCameras();
     std::vector<std::string> captureDevices;
     

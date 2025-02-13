@@ -33,7 +33,7 @@ include(GoogleTest)
 
 add_executable(
     ${PROJECT_NAME}test
-    tests/camera.cpp
+    tests/test_camera.cpp
 )
 
 gtest_discover_tests(
