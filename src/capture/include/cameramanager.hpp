@@ -13,7 +13,7 @@
 class CameraManager
 {
 private:
-    std::vector<std::shared_ptr<VideoDevice*>> devices;
+    std::vector<std::shared_ptr<VideoDevice>> devices;
     CameraManager();
 
 public:
@@ -26,8 +26,8 @@ public:
         return instance;
     }
 
-    std::shared_ptr<VideoDevice*> get_camera_from_index(int);
-    std::shared_ptr<VideoDevice*> get_camera_from_path(const char *);
+    std::shared_ptr<VideoDevice> get_camera_from_index(int);
+    std::shared_ptr<VideoDevice> get_camera_from_path(const char *);
 
     int getNumberOfInputDevices();
 };

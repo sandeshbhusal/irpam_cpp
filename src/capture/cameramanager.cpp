@@ -6,9 +6,9 @@ CameraManager::CameraManager()
     std::vector<std::string> cameras = availableVideoDevices();
     for (const auto &path : cameras)
     {
-        VideoDevice *dev = new VideoDevice(path);
+        auto dev = std::make_shared<VideoDevice>(path);
         if (dev->isCaptureDevice())
-            this->devices.push_back(std::make_unique<VideoDevice *>(dev));
+            this->devices.push_back(std::make_unique<VideoDevice>(dev));
     }
 }
 
@@ -17,18 +17,18 @@ int CameraManager::getNumberOfInputDevices()
     return this->devices.size();
 }
 
-std::shared_ptr<VideoDevice*> CameraManager::get_camera_from_index(int index)
+std::shared_ptr<VideoDevice> CameraManager::get_camera_from_index(int index)
 {
-    if (index > this->devices.size())
+    if (index >= this->devices.size())
     {
         throw std::runtime_error("Camera index exceeds number of available cameras.");
     }
     return this->devices[index];
 }
 
-std::shared_ptr<VideoDevice*> CameraManager::get_camera_from_path(const char* path) {
-    for (const auto device: this->devices) {
-        if ((*device)->getPath() == std::string(path)) {
+std::shared_ptr<VideoDevice> CameraManager::get_camera_from_path(const char* path) {
+    for (const auto& device: this->devices) {
+        if (device->getPath() == std::string(path)) {
             return device;
         }
     }
