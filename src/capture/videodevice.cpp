@@ -1,7 +1,7 @@
 #include "include/videodevice.hpp"
 
-VideoDevice::VideoDevice(const std::string &camera_path, int index)
-    : camera_path(camera_path), index(index)
+VideoDevice::VideoDevice(const std::string &camera_path)
+    : camera_path(camera_path)
 {
     if (!std::filesystem::exists(camera_path))
         throw std::runtime_error("Camera path does not exist: " + camera_path);

@@ -1,6 +1,7 @@
 add_executable(
     ${PROJECT_NAME}_tests
     test_camera.cpp
+    test_recognition.cpp
 )
 
 include(FetchContent)

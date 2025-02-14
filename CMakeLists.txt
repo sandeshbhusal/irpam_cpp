@@ -7,4 +7,5 @@ enable_testing()
 add_subdirectory(src/capture)
 add_subdirectory(src/recognition)
 add_subdirectory(tests)
+add_subdirectory(src/lib)
 
