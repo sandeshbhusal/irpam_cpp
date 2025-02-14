@@ -8,7 +8,7 @@ CameraManager::CameraManager()
     {
         auto dev = std::make_shared<VideoDevice>(path);
         if (dev->isCaptureDevice())
-            this->devices.push_back(std::make_unique<VideoDevice>(dev));
+            this->devices.push_back(dev);
     }
 }
 
