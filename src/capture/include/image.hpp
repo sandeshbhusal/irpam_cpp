@@ -40,4 +40,5 @@ public:
     size_t getSize() const;
 };
 
+std::ostream& operator<<(std::ostream& stream, const ImageFormat& format);
 #endif

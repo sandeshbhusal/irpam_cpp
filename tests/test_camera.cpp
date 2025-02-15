@@ -20,6 +20,8 @@ TEST(checkCapture, AtLeastOneImage) {
     // Get the first camera.
     std::shared_ptr<VideoDevice> device = manager.get_camera_from_index(1);
     std::unique_ptr<ImageBuffer> buffer = device.get()->grab(format);
+    
+    std::cerr << "Buffer size: " << buffer.get()->getSize() << std::endl;
 
     stbi_write_jpg("test_lum.jpg", buffer.get()->getFormat().width, buffer.get()->getFormat().height, 3, buffer.get()->getData(), 100);
 }
