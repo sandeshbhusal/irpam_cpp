@@ -1,4 +1,5 @@
 #include "include/videodevice.hpp"
+#include "spdlog/spdlog.h"
 #include <sys/mman.h>
 
 VideoDevice::VideoDevice(const std::string &camera_path)
@@ -60,6 +61,7 @@ std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const 
     fmt.fmt.pix.pixelformat = format.fourcc;
     fmt.fmt.pix.field = V4L2_FIELD_ANY;
 
+    spdlog::info("Setting format: {}x{} with fourcc: {}", format.width, format.height, format.fourcc);
     if (v4l2_ioctl(fd, VIDIOC_S_FMT, &fmt) < 0) {
         throw std::runtime_error("Could not set format: " + std::string(strerror(errno)));
     }

@@ -16,4 +16,5 @@ target_link_libraries(
     ${PROJECT_NAME}_capture
     PRIVATE
         v4l2
+        spdlog
 )

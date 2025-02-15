@@ -5,6 +5,8 @@
 #include <cstring>
 #include <memory>
 
+#include "libv4lconvert.h"
+
 /**
  * @brief A supported image format in the camera device.
  * This struct only stores the pixel format fourcc and dimensions of the image.
