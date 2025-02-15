@@ -3,6 +3,7 @@ add_library(
     SHARED
     cameramanager.cpp
     videodevice.cpp
+    image.cpp
 )
 
 target_include_directories(

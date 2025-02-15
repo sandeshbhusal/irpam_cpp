@@ -9,7 +9,7 @@ TEST(checkDevices, AtLeastOneCameraPresent) {
 
 TEST(checkCapture, AtLeastOneImage) {
     ImageFormat format = {
-        .fourcc = v4l2_fourcc('M', 'J', 'P', 'G'),
+        .fourcc = v4l2_fourcc('G', 'R', 'E', 'Y'),
         .width = 640,
         .height = 480
     };
@@ -17,6 +17,6 @@ TEST(checkCapture, AtLeastOneImage) {
     CameraManager& manager = CameraManager::getInstance();
     
     // Get the first camera.
-    std::shared_ptr<VideoDevice> device = manager.get_camera_from_index(0);
+    std::shared_ptr<VideoDevice> device = manager.get_camera_from_index(1);
     std::unique_ptr<ImageBuffer> buffer = device.get()->grab(format);
 }
