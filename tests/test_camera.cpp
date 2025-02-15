@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "cameramanager.hpp"
+#include "stb_image_write.hpp"
 
 TEST(checkDevices, AtLeastOneCameraPresent) {
     CameraManager& manager = CameraManager::getInstance();
@@ -8,12 +9,17 @@ TEST(checkDevices, AtLeastOneCameraPresent) {
 }
 
 TEST(checkCapture, AtLeastOneImage) {
-    // Really doesn't matter what format we use here :)
-    ImageFormat format = {0};
+    ImageFormat format = {
+        .fourcc = v4l2_fourcc('G', 'R', 'E', 'Y'),
+        .width = 400,
+        .height = 400,
+    };
 
     CameraManager& manager = CameraManager::getInstance();
     
     // Get the first camera.
-    std::shared_ptr<VideoDevice> device = manager.get_camera_from_index(0);
+    std::shared_ptr<VideoDevice> device = manager.get_camera_from_index(1);
     std::unique_ptr<ImageBuffer> buffer = device.get()->grab(format);
+
+    stbi_write_jpg("test_lum.jpg", format.width, format.height, 3, buffer.get()->getData(), 100);
 }
