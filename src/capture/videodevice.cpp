@@ -1,4 +1,5 @@
 #include "include/videodevice.hpp"
+#include <sys/mman.h>
 
 VideoDevice::VideoDevice(const std::string &camera_path)
     : camera_path(camera_path)
@@ -12,29 +13,37 @@ VideoDevice::VideoDevice(const std::string &camera_path)
 
     if (v4l2_ioctl(fd, VIDIOC_QUERYCAP, &this->cap) < 0)
         throw std::runtime_error("Failed to query camera caps: " + std::string(strerror(errno)));
-    
-    // Make sure this is an input device before we proceed with the following;
-    // If not, we are done at this point.
-    if (!this-> isCaptureDevice()) return;
 
-    // This is a input video device. We enumerate all available formats, 
-    // the frame sizes available in those formats, and store them.
-    // This should be enough (for now) to gather images from the device.
+    if (!this->isCaptureDevice())
+        return;
+
     v4l2_fmtdesc fmtdesc = {0};
     fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-    while (ioctl(fd, VIDIOC_ENUM_FMT, &fmtdesc) == 0) {
+    while (ioctl(fd, VIDIOC_ENUM_FMT, &fmtdesc) == 0)
+    {
         v4l2_frmsizeenum frmsize = {};
         frmsize.pixel_format = fmtdesc.pixelformat;
 
-        while (ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) == 0) {
-            if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
+        while (ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) == 0)
+        {
+            if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE)
+            {
+                v4l2_format fmt = {0};
+                fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+                fmt.fmt.pix.pixelformat = fmtdesc.pixelformat;
+                fmt.fmt.pix.width = frmsize.discrete.width;
+                fmt.fmt.pix.height = frmsize.discrete.height;
+
+                // Use TRY_FMT instead of S_FMT to query the format requirements
+                if (ioctl(fd, VIDIOC_TRY_FMT, &fmt) < 0)
+                    throw std::runtime_error("Could not try format: " + std::string(strerror(errno)));
+
                 ImageFormat format = {
                     .fourcc = fmtdesc.pixelformat,
                     .width = frmsize.discrete.width,
                     .height = frmsize.discrete.height,
-                };
-
+                    .buffersize = fmt.fmt.pix.sizeimage};
                 this->available_formats.push_back(format);
             }
             frmsize.index++;
@@ -43,48 +52,76 @@ VideoDevice::VideoDevice(const std::string &camera_path)
     }
 }
 
-std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat& format) const {
+std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const {
+    struct v4l2_format fmt = {};
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.width = format.width;
+    fmt.fmt.pix.height = format.height;
+    fmt.fmt.pix.pixelformat = format.fourcc;
+    fmt.fmt.pix.field = V4L2_FIELD_ANY;
+
+    if (v4l2_ioctl(fd, VIDIOC_S_FMT, &fmt) < 0) {
+        throw std::runtime_error("Could not set format: " + std::string(strerror(errno)));
+    }
+
+    struct v4l2_requestbuffers req = {};
+    req.count = 1;
+    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    req.memory = V4L2_MEMORY_MMAP;
+    if (v4l2_ioctl(fd, VIDIOC_REQBUFS, &req) < 0) {
+        throw std::runtime_error("Could not request buffers: " + std::string(strerror(errno)));
+    }
+
     struct v4l2_buffer buf = {};
     buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    buf.memory = V4L2_MEMORY_USERPTR;
+    buf.memory = V4L2_MEMORY_MMAP;
     buf.index = 0;
+    if (v4l2_ioctl(fd, VIDIOC_QUERYBUF, &buf) < 0) {
+        throw std::runtime_error("Could not query buffer: " + std::string(strerror(errno)));
+    }
 
-    // We need to enqueue a buffer before storeaming otherwise the camera returns EBUSY.
+    void *buffer = v4l2_mmap(nullptr, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, buf.m.offset);
+    if (buffer == MAP_FAILED) {
+        throw std::runtime_error("MMap failed: " + std::string(strerror(errno)));
+    }
+
     if (v4l2_ioctl(fd, VIDIOC_QBUF, &buf) < 0) {
+        v4l2_munmap(buffer, buf.length);
         throw std::runtime_error("Could not queue buffer: " + std::string(strerror(errno)));
     }
 
-    // Start streaming
-    if (v4l2_ioctl(fd, VIDIOC_STREAMON, &buf.type) < 0) {
-        throw std::runtime_error("Could not initialize stream: " + std::string(strerror(errno)));
+    auto buf_type = buf.type;
+    if (v4l2_ioctl(fd, VIDIOC_STREAMON, &buf_type) < 0) {
+        v4l2_munmap(buffer, buf.length);
+        throw std::runtime_error("Could not start streaming: " + std::string(strerror(errno)));
     }
 
-    // Dequeue a buffer
     if (v4l2_ioctl(fd, VIDIOC_DQBUF, &buf) < 0) {
-        v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf.type); // Ensure stream is turned off before throwing
+        v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf_type);
+        v4l2_munmap(buffer, buf.length);
         throw std::runtime_error("Could not dequeue buffer: " + std::string(strerror(errno)));
     }
 
-    const void* data_ptr = nullptr;
-    if (buf.memory == V4L2_MEMORY_USERPTR) {
-        data_ptr = reinterpret_cast<const void*>(buf.m.userptr);
-    } else {
-        v4l2_ioctl(fd, VIDIOC_QBUF, &buf);  // Requeue buffer before throwing
-        v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf.type);
-        throw std::runtime_error("Unsupported V4L2 memory type.");
-    }
+    auto persistent_buffer = new char[buf.bytesused];
+    memcpy(persistent_buffer, buffer, buf.bytesused);
 
-    auto rval = std::make_unique<ImageBuffer>(ImageBuffer(data_ptr, buf.bytesused, format));
+    v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf_type);
+    v4l2_munmap(buffer, buf.length);
 
-    if (v4l2_ioctl(fd, VIDIOC_QBUF, &buf) < 0) {
-        v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf.type);
-        throw std::runtime_error("Could not queue buffer back: " + std::string(strerror(errno)));
-    }
+    struct v4l2_requestbuffers req_free = {};
+    req_free.count = 0;
+    req_free.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    req_free.memory = V4L2_MEMORY_MMAP;
+    v4l2_ioctl(fd, VIDIOC_REQBUFS, &req_free);
 
-    if (v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf.type) < 0) {
-        throw std::runtime_error("Could not turn off stream: " + std::string(strerror(errno)));
-    }
+    auto rval = std::make_unique<ImageBuffer>(
+        persistent_buffer,
+        buf.bytesused,
+        format
+    );
 
+    // Delete the buffer (the imagebuffer will do a memcpy internally).
+    delete[] persistent_buffer;
     return rval;
 }
 
@@ -122,7 +159,8 @@ std::vector<std::string> availableVideoDevices()
     return cameras;
 }
 
-std::ostream& operator<<(std::ostream& stream, const ImageFormat& format) {
+std::ostream &operator<<(std::ostream &stream, const ImageFormat &format)
+{
     stream << "Format: " << format.fourcc << ", Width: " << format.width << ", Height: " << format.height;
     return stream;
 }

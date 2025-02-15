@@ -25,6 +25,7 @@ struct ImageFormat {
     uint32_t fourcc;
     unsigned int width;
     unsigned int height;
+    size_t buffersize;
 };
 
 class ImageBuffer {
