@@ -22,7 +22,6 @@ struct ImageFormat {
     size_t getSize() const;
 };
 
-
 class ImageBuffer {
 private:
     ImageFormat format;

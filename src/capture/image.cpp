@@ -1,4 +1,4 @@
-#include "include/image.hpp"
+#include "image.hpp"
 
 ImageBuffer::ImageBuffer(const void *databuffer, uint32_t size, const ImageFormat format)
     : format(format), bufferSize(size), buffer(std::make_unique<char[]>(size))

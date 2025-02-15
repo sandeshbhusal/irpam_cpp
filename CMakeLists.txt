@@ -17,7 +17,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(spdlog)
 set(SPDLOG_BUILD_SHARED ON CACHE BOOL "" FORCE)
-# set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_subdirectory(src/capture)
 add_subdirectory(src/recognition)

@@ -1,5 +1,5 @@
 #include <assert.h>
-#include "include/cameramanager.hpp"
+#include "cameramanager.hpp"
 
 CameraManager::CameraManager()
 {
