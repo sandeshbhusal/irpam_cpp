@@ -11,8 +11,8 @@ TEST(checkDevices, AtLeastOneCameraPresent) {
 TEST(checkCapture, AtLeastOneImage) {
     ImageFormat format = {
         .fourcc = v4l2_fourcc('G', 'R', 'E', 'Y'),
-        .width = 400,
-        .height = 400,
+        .width = 640,
+        .height = 480,
     };
 
     CameraManager& manager = CameraManager::getInstance();
@@ -21,5 +21,5 @@ TEST(checkCapture, AtLeastOneImage) {
     std::shared_ptr<VideoDevice> device = manager.get_camera_from_index(1);
     std::unique_ptr<ImageBuffer> buffer = device.get()->grab(format);
 
-    stbi_write_jpg("test_lum.jpg", format.width, format.height, 3, buffer.get()->getData(), 100);
+    stbi_write_jpg("test_lum.jpg", buffer.get()->getFormat().width, buffer.get()->getFormat().height, 3, buffer.get()->getData(), 100);
 }

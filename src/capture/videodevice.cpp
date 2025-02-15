@@ -68,6 +68,13 @@ std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
         throw std::runtime_error("Could not set format: " + std::string(strerror(errno)));
     }
 
+    spdlog::info("Actual format set - width: {}, height: {}, pixelformat: {:#x}",
+                 fmt.fmt.pix.width, fmt.fmt.pix.height, fmt.fmt.pix.pixelformat);
+        
+    uint32_t set_width = fmt.fmt.pix.width;
+    uint32_t set_height = fmt.fmt.pix.height;
+    uint32_t set_fourcc = fmt.fmt.pix.pixelformat;
+
     struct v4l2_requestbuffers req = {};
     req.count = 1;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -122,11 +129,11 @@ std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
 
     struct v4l2_format rgbfmt = {};
     rgbfmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    rgbfmt.fmt.pix.width = format.width;
-    rgbfmt.fmt.pix.height = format.height;
+    rgbfmt.fmt.pix.width = set_width; // We cannot use "format" here because it's a suggestion only.
+    rgbfmt.fmt.pix.height = set_height;
     rgbfmt.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
-    rgbfmt.fmt.pix.bytesperline = format.width * 3;
-    rgbfmt.fmt.pix.sizeimage = format.width * format.height * 3;
+    rgbfmt.fmt.pix.bytesperline = set_width * 3;
+    rgbfmt.fmt.pix.sizeimage = set_height * set_width * 3;
 
     auto rgb_buffer = std::make_unique<char[]>(rgbfmt.fmt.pix.sizeimage);
     if (v4lconvert_convert(convert_ctx, &fmt, &rgbfmt, static_cast<unsigned char *>(buffer), buf.bytesused, reinterpret_cast<unsigned char *>(rgb_buffer.get()), rgbfmt.fmt.pix.sizeimage) < 0)
@@ -138,7 +145,8 @@ std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
 
     v4lconvert_destroy(convert_ctx);
 
-    if (v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf_type) < 0) {
+    if (v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf_type) < 0)
+    {
         v4l2_munmap(buffer, buf.length);
         throw std::runtime_error("Could not stop streaming: " + std::string(strerror(errno)));
     }
@@ -149,14 +157,21 @@ std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
     req_free.count = 0;
     req_free.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req_free.memory = V4L2_MEMORY_MMAP;
-    if (v4l2_ioctl(fd, VIDIOC_REQBUFS, &req_free) < 0) {
+    if (v4l2_ioctl(fd, VIDIOC_REQBUFS, &req_free) < 0)
+    {
         throw std::runtime_error("Could not free buffers: " + std::string(strerror(errno)));
     }
+
+    ImageFormat capturedImageFormat = {
+        .fourcc = V4L2_PIX_FMT_RGB24,
+        .width = rgbfmt.fmt.pix.width,
+        .height = rgbfmt.fmt.pix.height,
+        .buffersize = rgbfmt.fmt.pix.sizeimage};
 
     return std::make_unique<ImageBuffer>(
         rgb_buffer.release(),
         rgbfmt.fmt.pix.sizeimage,
-        format);
+        capturedImageFormat);
 }
 
 bool VideoDevice::isCaptureDevice() const
