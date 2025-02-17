@@ -29,7 +29,6 @@ private:
     std::vector<ImageFormat> available_formats;
     v4l2_capability cap;
     bool is_ir = false;
-    bool supports_mmap = false;
     int fd = -1;
 
 public:

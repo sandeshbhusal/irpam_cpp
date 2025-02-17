@@ -38,6 +38,8 @@ public:
     const ImageFormat& getFormat() const;
     const void* getData() const;
     size_t getSize() const;
+
+    void resizeBuffer(size_t newWidth, size_t newHeight);
 };
 
 std::ostream& operator<<(std::ostream& stream, const ImageFormat& format);

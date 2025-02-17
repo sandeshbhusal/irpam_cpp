@@ -18,18 +18,13 @@ VideoDevice::VideoDevice(const std::string &camera_path)
     if (v4l2_ioctl(fd, VIDIOC_QUERYCAP, &this->cap) < 0)
         throw std::runtime_error("Failed to query camera caps: " + std::string(strerror(errno)));
 
-    // MOST IR cameras have "IR" in the card name. This works for me.
-    // TODO: Find what works for other people later.
-    auto card = std::string(reinterpret_cast<char*>(this->cap.card));
-    if (card.find("IR") != std::string::npos)
+    if (!cap.capabilities & V4L2_BUF_CAP_SUPPORTS_MMAP) 
     {
-        this->is_ir = true;
-    }
-    if (cap.capabilities & V4L2_BUF_CAP_SUPPORTS_MMAP) 
-    {
-        this->supports_mmap = true;
-    } else {
         throw std::runtime_error("Camera does not support memory mapping. Userspace buffers are not implemented.");
+    }
+
+    if (std::string(reinterpret_cast<const char*>(cap.card)).find("IR") != std::string::npos){
+        this -> is_ir = true;
     }
 
     if (!this->isCaptureDevice())
@@ -144,6 +139,12 @@ std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
         if (v4l2_ioctl(fd, VIDIOC_DQBUF, &buf) < 0)
         {
             throw std::runtime_error("Could not dequeue buffer: " + std::string(strerror(errno)));
+        }
+
+        // The normal camera takes a while for the exposure, brightness, etc. to be stable.
+        // There's better ways to do this, probably :)
+        if (!this->is_ir && i < 8) {
+            continue;
         }
 
         // Check if buffer contains any data (anything other than 0).

@@ -1,6 +1,6 @@
 add_library(
     ${PROJECT_NAME}_recognition
-    SHARED
+    STATIC
     recognition.cpp
 )
 
@@ -16,6 +16,7 @@ FetchContent_Declare (
         -DNCNN_BUILD_BENCHMARK=OFF
         -DNCNN_VULKAN=OFF
         -DNCNN_BUILD_TESTS=OFF
+        -DNCNN_SHARED_LIB=OFF
 )
 
 FetchContent_MakeAvailable(libncnn)
@@ -24,6 +25,7 @@ target_link_libraries(
     ${PROJECT_NAME}_recognition
     PUBLIC
     ncnn
+    ${PROJECT_NAME}_capture
 )
 
 target_include_directories(

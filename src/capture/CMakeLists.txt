@@ -1,6 +1,6 @@
 add_library(
     ${PROJECT_NAME}_capture
-    SHARED
+    STATIC
     cameramanager.cpp
     videodevice.cpp
     image.cpp
@@ -16,5 +16,6 @@ target_link_libraries(
     ${PROJECT_NAME}_capture
     PRIVATE
         v4l2
+        v4lconvert
         spdlog
 )
