@@ -3,4 +3,5 @@
 
 #include "net.h"
 
+extern "C" void recognize_image();
 #endif

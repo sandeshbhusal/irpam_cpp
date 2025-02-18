@@ -5,6 +5,13 @@
 
 #define BUF_REQ_COUNT 10;
 
+/**
+ * The VideoDevice represents an open /dev/video* character device in the system.
+ * 
+ * When a VideoDevice is created, it first checks if the device is available. If so,
+ * we query the capabilites to check if this is a camera. For a camera, all supported
+ * image formats and their respective resolutions are enumerated and stored.
+ */
 VideoDevice::VideoDevice(const std::string &camera_path)
     : camera_path(camera_path)
 {
@@ -65,6 +72,15 @@ VideoDevice::VideoDevice(const std::string &camera_path)
     }
 }
 
+/**
+ * Grab an image from the camera for the given image format.
+ * 
+ * The image format describes the pixel format, the height and width (resolution)
+ * of the image, as well as the buffer size that the image is going to occupy in 
+ * memory (see compressed pixel formats).
+ * 
+ * @returns A unique pointer to the image buffer containing the image data.
+ */
 std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
 {
     struct v4l2_format fmt = {};
@@ -229,6 +245,11 @@ std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
         capturedImageFormat);
 }
 
+/**
+ * Check if the device is a capture device.
+ * 
+ * @returns `true` if the device is a camera, `false` otherwise.
+ */
 bool VideoDevice::isCaptureDevice() const
 {
     int input = 0;
@@ -238,11 +259,38 @@ bool VideoDevice::isCaptureDevice() const
     return true;
 }
 
+/**
+ * Get the path of the camera device.
+ * 
+ * @returns The path of the camera device, like `/dev/video0`.
+ */
 const std::string VideoDevice::getPath() const
 {
     return this->camera_path;
 }
 
+/**
+ * Destructor for the VideoDevice class.
+ * 
+ * When the VideoDevice is destroyed, we close the file descriptor
+ * to the camera device, if it is open.
+ */
+// VideoDevice::~VideoDevice()
+// {
+//     // If a VideoDevice goes out of scope, or if it is dropped,
+//     // we do not want to keep the associated device open indefinitely.
+//     if (fd > -1)
+//     {
+//         v4l2_close(fd);
+//     }
+// }
+
+/**
+ * Enumerate all available /dev/video* paths in the system. This is a naiive way to
+ * enumerate all cameras, but I think it should work for most systems (at least those I've encountered :)
+ * 
+ * @returns A vector of strings containing the paths to all available cameras.
+ */
 std::vector<std::string> availableVideoDevices()
 {
     namespace fs = std::filesystem;

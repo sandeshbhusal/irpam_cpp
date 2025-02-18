@@ -4,6 +4,5 @@
 
 TEST(recognition_tests, BasicMatMul)
 {
-    ncnn::Net net;
-    std::vector<ncnn::Layer*> layers = net.layers();
+    recognize_image();
 }
