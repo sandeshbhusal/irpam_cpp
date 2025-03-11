@@ -1,9 +1,10 @@
-// #define STB_IMAGE_RESIZE_IMPLEMENTATION
-// #define STB_IMAGE_RESIZE2_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE2_IMPLEMENTATION
 
-// #include "stb_image_resize2.hpp"
 #include "image.hpp"
 #include <cassert>
+
+#include "stb_image_resize2.h"
 
 ImageBuffer::ImageBuffer(const void *databuffer, uint32_t size, const ImageFormat format)
     : format(format), bufferSize(size), buffer(std::make_unique<char[]>(size))
@@ -35,31 +36,58 @@ ImageBuffer::ImageBuffer(ImageBuffer &&other) noexcept
     other.bufferSize = 0;
 }
 
-void ImageBuffer::resizeBuffer(size_t newWidth, size_t newHeight)
-{
-    // Check if nothing to do
-    if (newWidth == this->format.width && newHeight == this->format.height)
-        return;
-
-    // Assert that our format is indeed in RGB.
-    assert(this->format.fourcc == V4L2_PIX_FMT_RGB24 && "ImageBuffer::resizeBuffer: format is not RGB24");
-
-    // Calculate the new size
-    size_t newSize = newWidth * newHeight * 3; // 3 bytes per pixel for RGB24
-    auto newBuffer = std::make_unique<char[]>(newSize);
-
-    // stbir_resize_uint8_srgb(
-    //     reinterpret_cast<const unsigned char *>(this->buffer.get()), this->format.width, this->format.height,
-    //     0, reinterpret_cast<unsigned char *>(newBuffer.get()), newWidth, newHeight, 0, STBIR_RGB);
-
-    // // Update the buffer and format
-    // this->buffer = std::move(newBuffer);
-    // this->bufferSize = newSize;
-    // this->format.width = newWidth;
-    // this->format.height = newHeight;
-}
-
 const ImageFormat &ImageBuffer::getFormat() const { return format; }
 
 const void *ImageBuffer::getData() const { return this->buffer.get(); }
 size_t ImageBuffer::getSize() const { return this->bufferSize; }
+
+std::unique_ptr<ImageBuffer> ImageBuffer::resizeTo(unsigned int newWidth, unsigned int newHeight) const
+{
+    int numChannels = 3;
+    int inputStride = format.width * numChannels;
+    int outputStride = newWidth * numChannels;
+
+    void *resizedBuffer = new char[newWidth * newHeight * numChannels];
+
+    stbir_resize_uint8_srgb(
+        reinterpret_cast<const unsigned char *>(buffer.get()), format.width, format.height, inputStride,
+        reinterpret_cast<unsigned char *>(resizedBuffer), newWidth, newHeight, outputStride,
+        STBIR_RGB);
+
+    return std::make_unique<ImageBuffer>(resizedBuffer, newWidth * newHeight * numChannels,
+                                         ImageFormat{format.fourcc, newWidth, newHeight, newWidth * newHeight * numChannels});
+}
+
+
+std::unique_ptr<ImageBuffer> ImageBuffer::cropImage(double x0, double y0, double x1, double y1) const {
+    unsigned int start_x = static_cast<unsigned int>(x0 * format.width);
+    unsigned int start_y = static_cast<unsigned int>(y0 * format.height);
+    unsigned int end_x = static_cast<unsigned int>(x1 * format.width);
+    unsigned int end_y = static_cast<unsigned int>(y1 * format.height);
+
+    unsigned int new_width = end_x - start_x;
+    unsigned int new_height = end_y - start_y;
+
+    assert(new_width > 0 && new_height > 0 && "Invalid crop dimensions");
+
+    size_t new_size = new_width * new_height * 3; // Assuming 3 channels (RGB)
+    void *croppedBuffer = new char[new_size];
+
+    for (unsigned int y = 0; y < new_height; ++y) {
+        unsigned int src_y = start_y + y;
+        unsigned int dst_y = y;
+
+        for (unsigned int x = 0; x < new_width; ++x) {
+            unsigned int src_x = start_x + x;
+            unsigned int dst_x = x;
+
+            size_t src_index = (src_y * format.width + src_x) * 3;
+            size_t dst_index = (dst_y * new_width + dst_x) * 3;
+
+            std::memcpy(static_cast<char *>(croppedBuffer) + dst_index,
+                        static_cast<char *>(buffer.get()) + src_index, 3);
+        }
+    }
+    return std::make_unique<ImageBuffer>(croppedBuffer, new_size,
+                                         ImageFormat{format.fourcc, new_width, new_height, new_size});
+}

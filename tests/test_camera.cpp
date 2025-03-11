@@ -10,7 +10,7 @@ TEST(checkDevices, AtLeastOneCameraPresent)
     EXPECT_GE(manager.getNumberOfInputDevices(), 1) << "At least one camera is required";
 }
 
-TEST(checkCapture, AtLeastOneImage)
+TEST(checkCapture, DoubleTrouble)
 {
     // Initialize two threads so that we can capture two images at the same time.
     std::thread t1;

@@ -29,6 +29,8 @@ public:
     std::shared_ptr<VideoDevice> get_camera_from_index(int);
     std::shared_ptr<VideoDevice> get_camera_from_path(const char *);
 
+    std::vector<std::shared_ptr<VideoDevice>> get_luma_cameras();
+
     int getNumberOfInputDevices();
 };
 #endif

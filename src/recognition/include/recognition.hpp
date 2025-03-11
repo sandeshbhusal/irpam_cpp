@@ -2,6 +2,7 @@
 #define RECOGNITION_H
 
 #include "net.h"
+#include "image.hpp"
 
-extern "C" void recognize_image();
+extern "C" void recognize_image(const ImageBuffer &image);
 #endif

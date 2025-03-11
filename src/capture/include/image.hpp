@@ -5,13 +5,16 @@
 #include <cstring>
 #include <memory>
 
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+
 #include "libv4lconvert.h"
 
 /**
  * @brief A supported image format in the camera device.
  * This struct only stores the pixel format fourcc and dimensions of the image.
  */
-struct ImageFormat {
+struct ImageFormat
+{
     uint32_t fourcc;
     unsigned int width;
     unsigned int height;
@@ -22,25 +25,27 @@ struct ImageFormat {
     size_t getSize() const;
 };
 
-class ImageBuffer {
+class ImageBuffer
+{
 private:
     ImageFormat format;
     std::unique_ptr<char[]> buffer;
     size_t bufferSize;
 
 public:
-    ImageBuffer(const void* databuffer, uint32_t size, const ImageFormat format);
-    ImageBuffer(const ImageBuffer& other);
-    ImageBuffer& operator=(const ImageBuffer& other);
-    ImageBuffer(ImageBuffer&& other) noexcept;
-    ImageBuffer& operator=(ImageBuffer&& other) noexcept;
+    ImageBuffer(const void *databuffer, uint32_t size, const ImageFormat format);
+    ImageBuffer(const ImageBuffer &other);
+    ImageBuffer &operator=(const ImageBuffer &other);
+    ImageBuffer(ImageBuffer &&other) noexcept;
+    ImageBuffer &operator=(ImageBuffer &&other) noexcept;
     ~ImageBuffer() = default;
-    const ImageFormat& getFormat() const;
-    const void* getData() const;
+    const ImageFormat &getFormat() const;
+    const void *getData() const;
     size_t getSize() const;
 
-    void resizeBuffer(size_t newWidth, size_t newHeight);
+    std::unique_ptr<ImageBuffer> resizeTo(unsigned int newWidth, unsigned int newHeight) const;
+    std::unique_ptr<ImageBuffer> cropImage(double x0, double y0, double x1, double y1) const;
 };
 
-std::ostream& operator<<(std::ostream& stream, const ImageFormat& format);
+std::ostream &operator<<(std::ostream &stream, const ImageFormat &format);
 #endif

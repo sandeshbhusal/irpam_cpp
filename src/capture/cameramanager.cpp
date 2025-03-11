@@ -35,3 +35,14 @@ std::shared_ptr<VideoDevice> CameraManager::get_camera_from_path(const char* pat
 
     throw std::runtime_error("No such camera found");
 }
+
+enum LumaFormats {
+    GREY = V4L2_PIX_FMT_GREY
+};
+
+/**
+ * Retuns all the cameras that are capable of capturing luma images.
+ */
+std::vector<std::shared_ptr<VideoDevice>> get_luma_cameras() {
+    return std::vector<std::shared_ptr<VideoDevice>>(); 
+}

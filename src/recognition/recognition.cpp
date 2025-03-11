@@ -3,11 +3,19 @@
 #include <random>
 #include <iostream>
 #include "image.hpp"
+#include "stb_image_write.h"
 
-extern "C" void recognize_image()
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+
+extern "C" void recognize_image(const ImageBuffer& image)
 {
-    // Create a new image buffer we can mutate.
-    // ImageBuffer buffer(image);
+    // save original image to a file.
+    stbi_write_jpg("original_image.jpg", image.getFormat().width, image.getFormat().height, 3, image.getData(), 100);
+ 
+    ImageBuffer resized_image = *image.resizeTo(320, 240);
+
+    // save resized image to a file.
+    stbi_write_jpg("resized_image.jpg", resized_image.getFormat().width, resized_image.getFormat().height, 3, resized_image.getData(), 100);
 
     ncnn::Net network;
     network.load_param("/home/sandesh/temp/version_RFB_320.ncnn.param");
@@ -37,4 +45,40 @@ extern "C" void recognize_image()
 
     std::cerr << "Output0: " << output0.w << "x" << output0.h << "x" << output0.c << std::endl;
     std::cerr << "Output1: " << output1.w << "x" << output1.h << "x" << output1.c << std::endl;
+
+    // Grab the largest face detected in the model.
+    int max_index = 0;
+    float max_value = 0.0f;
+
+    for (int i = 0; i < output0.h; ++i)
+    {
+        float value = output0.row(i)[0];
+        if (value > max_value)
+        {
+            max_value = value;
+            max_index = i;
+        }
+    }
+
+    std::cerr << "Max value: " << max_value << " at index: " << max_index << std::endl;
+
+    // Grab the bounding box for the face.
+    float x0 = output1.row(max_index)[0];
+    float y0 = output1.row(max_index)[1];
+    float x1 = output1.row(max_index)[2];
+    float y1 = output1.row(max_index)[3];
+
+    std::cerr << "Bounding box: (" << x0 << ", " << y0 << ") (" << x1 << ", " << y1 << ")" << std::endl;
+
+    // Crop the image to the bounding box.
+    std::unique_ptr<ImageBuffer> cropped_image = resized_image.cropImage(x0, y0, x1, y1);
+    std::cerr << "Cropped image size: " << cropped_image->getFormat().width << "x" << cropped_image->getFormat().height << std::endl;
+
+    // Save the cropped image to a file (for testing right now)
+    stbi_write_jpg("cropped_image.jpg", cropped_image->getFormat().width, cropped_image->getFormat().height, 3, cropped_image->getData(), 100);
+
+    // Now we load a different neural net to generate facial embeddings.
+    ncnn::Net embeddingsNet;
+    // embeddingsNet.load_model();
+    // embeddingsNet.load_param();
 }
