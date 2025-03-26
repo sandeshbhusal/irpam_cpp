@@ -1,0 +1,1 @@
+extern "C" void check_exports() {}
