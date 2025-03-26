@@ -14,8 +14,8 @@ std::optional<cv::Mat> extract_face(const cv::Mat &input_image)
 
     // Prep + run NN
     auto detection_model = cv::dnn::readNetFromCaffe(
-        "/home/sandesh/workspace/opencv-testing/modelproto.txt",
-        "/home/sandesh/workspace/opencv-testing/res10_300x300_ssd_iter_140000_fp16.caffemodel");
+        "/models/modelproto.txt",
+        "/models/res10_300x300_ssd_iter_140000_fp16.caffemodel");
 
     detection_model.setInput(blob);
     auto detections = detection_model.forward();
@@ -67,7 +67,7 @@ cv::Mat get_embedding(const cv::Mat &image)
     using namespace recognition_params;
     auto net = cv::dnn::readNetFromONNX("/home/sandesh/workspace/opencv-testing/arcfaceresnet100-11-int8.onnx");
     net.setInput(image);
-    return net.forward(OUTPUT_LAYER);
+    return net.forward("fc1");
 }
 
 bool are_similar(const cv::Mat &first, const cv::Mat &second)

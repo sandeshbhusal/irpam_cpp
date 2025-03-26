@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include "cameramanager.hpp"
+#include "recognition.hpp"
 
 TEST(recognition_tests, BasicMatMul)
 {
@@ -13,7 +14,8 @@ TEST(recognition_tests, BasicMatMul)
     });
 
     auto cv_image = (*buffer).to_mat();
-    cv::imwrite("/tmp/check.jpg", cv_image);
+    // Make sure it returns true for both same images.
+    ASSERT_TRUE(are_similar(cv_image, cv_image));
 }
 
 TEST(ir_capture, IR) {

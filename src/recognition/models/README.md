@@ -1,0 +1,1 @@
+This folder is copied to `/opt/campam/` on installing the package.
