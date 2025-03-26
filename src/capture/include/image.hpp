@@ -5,6 +5,8 @@
 #include <cstring>
 #include <memory>
 
+#include <opencv2/opencv.hpp>
+
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 
 #include "libv4lconvert.h"
@@ -45,6 +47,7 @@ public:
 
     std::unique_ptr<ImageBuffer> resizeTo(unsigned int newWidth, unsigned int newHeight) const;
     std::unique_ptr<ImageBuffer> cropImage(double x0, double y0, double x1, double y1) const;
+    cv::Mat to_mat();
 };
 
 std::ostream &operator<<(std::ostream &stream, const ImageFormat &format);

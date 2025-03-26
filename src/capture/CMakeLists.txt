@@ -10,6 +10,7 @@ target_include_directories(
     ${PROJECT_NAME}_capture
     PUBLIC
     "include"
+    ${OpenCV_INCLUDE_DIRS}
 )
 
 target_link_libraries(
@@ -18,4 +19,5 @@ target_link_libraries(
         v4l2
         v4lconvert
         spdlog
+        ${OpenCV_LIBRARIES}
 )
