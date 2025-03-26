@@ -38,9 +38,16 @@ ImageBuffer::ImageBuffer(ImageBuffer &&other) noexcept
 
 const ImageFormat &ImageBuffer::getFormat() const { return format; }
 
+cv::Mat ImageBuffer::to_mat()
+{
+    const void *data = this->getData();
+    assert(data != nullptr);
 
-cv::Mat ImageBuffer::to_mat() {
-
+    int h = this->format.height;
+    int w = this->format.width;
+    cv::Mat rval(h, w, CV_8UC3);
+    std::memcpy(rval.data, data, h * w * 3);
+    return rval;
 }
 
 const void *ImageBuffer::getData() const { return this->buffer.get(); }
@@ -63,8 +70,8 @@ std::unique_ptr<ImageBuffer> ImageBuffer::resizeTo(unsigned int newWidth, unsign
                                          ImageFormat{format.fourcc, newWidth, newHeight, newWidth * newHeight * numChannels});
 }
 
-
-std::unique_ptr<ImageBuffer> ImageBuffer::cropImage(double x0, double y0, double x1, double y1) const {
+std::unique_ptr<ImageBuffer> ImageBuffer::cropImage(double x0, double y0, double x1, double y1) const
+{
     unsigned int start_x = static_cast<unsigned int>(x0 * format.width);
     unsigned int start_y = static_cast<unsigned int>(y0 * format.height);
     unsigned int end_x = static_cast<unsigned int>(x1 * format.width);
@@ -78,11 +85,13 @@ std::unique_ptr<ImageBuffer> ImageBuffer::cropImage(double x0, double y0, double
     size_t new_size = new_width * new_height * 3; // Assuming 3 channels (RGB)
     void *croppedBuffer = new char[new_size];
 
-    for (unsigned int y = 0; y < new_height; ++y) {
+    for (unsigned int y = 0; y < new_height; ++y)
+    {
         unsigned int src_y = start_y + y;
         unsigned int dst_y = y;
 
-        for (unsigned int x = 0; x < new_width; ++x) {
+        for (unsigned int x = 0; x < new_width; ++x)
+        {
             unsigned int src_x = start_x + x;
             unsigned int dst_x = x;
 
