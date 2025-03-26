@@ -12,6 +12,8 @@ TEST(recognition_tests, BasicMatMul)
         .height = 400
     });
 
+    auto cv_image = (*buffer).to_mat();
+    cv::imwrite("/tmp/check.jpg", cv_image);
 }
 
 TEST(ir_capture, IR) {

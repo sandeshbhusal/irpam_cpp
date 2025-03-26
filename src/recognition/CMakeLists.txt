@@ -18,5 +18,6 @@ target_include_directories(
     ${PROJECT_NAME}_recognition 
 
     PUBLIC 
+    "include"
     ${OpenCV_INCLUDE_DIRS}
 )
