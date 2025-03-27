@@ -15,6 +15,7 @@ FetchContent_Declare(
     GIT_TAG        v2.x
     CMAKE_ARGS
         -DSPDLOG_BUILD_PIC=ON
+        -DBUILD_SHARED_LIBS=OFF
 )
 FetchContent_MakeAvailable(spdlog)
 set(SPDLOG_BUILD_SHARED ON CACHE BOOL "" FORCE)

@@ -2,8 +2,6 @@
 
 std::optional<cv::Mat> extract_face(const cv::Mat &input_image)
 {
-    using namespace recognition_params;
-
     int image_width = input_image.size[1];
     int image_height = input_image.size[0];
 
@@ -14,8 +12,8 @@ std::optional<cv::Mat> extract_face(const cv::Mat &input_image)
 
     // Prep + run NN
     auto detection_model = cv::dnn::readNetFromCaffe(
-        "/models/modelproto.txt",
-        "/models/res10_300x300_ssd_iter_140000_fp16.caffemodel");
+        "models/modelproto.txt",
+        "models/res10_300x300_ssd_iter_140000_fp16.caffemodel");
 
     detection_model.setInput(blob);
     auto detections = detection_model.forward();
@@ -64,7 +62,6 @@ std::optional<cv::Mat> extract_face(const cv::Mat &input_image)
 
 cv::Mat get_embedding(const cv::Mat &image)
 {
-    using namespace recognition_params;
     auto net = cv::dnn::readNetFromONNX("/home/sandesh/workspace/opencv-testing/arcfaceresnet100-11-int8.onnx");
     net.setInput(image);
     return net.forward("fc1");
@@ -72,7 +69,6 @@ cv::Mat get_embedding(const cv::Mat &image)
 
 bool are_similar(const cv::Mat &first, const cv::Mat &second)
 {
-    using namespace recognition_params;
     auto blob1 = cv::dnn::blobFromImage(first, 1.0 / 128.0, cv::Size(EMBEDDING_NET_WIDTH, EMBEDDING_NET_WIDTH));
     auto blob2 = cv::dnn::blobFromImage(second, 1.0 / 128.0, cv::Size(EMBEDDING_NET_WIDTH, EMBEDDING_NET_WIDTH));
 
