@@ -33,12 +33,29 @@ private:
 
 public:
     explicit VideoDevice(const std::string &camera_path);
-    bool isCaptureDevice() const;
-    const std::string getPath() const;
-    std::vector<v4l2_pix_format> getAvailableFormats() const;
-    std::unique_ptr<ImageBuffer> grab(const ImageFormat&) const;
-};
 
+    /**
+    * @brief Check if this device is a camera. There can be multiple types of video devices,
+    * like metadata capture, video output, etc.
+    */
+    bool isCaptureDevice() const;
+
+    /**
+     * @brief Return the device path (e.g., /dev/video0).
+     */
+    const std::string getPath() const;
+
+    /**
+     * @brief Get available formats supported by this device.
+     */
+    const std::vector<ImageFormat> getAvailableFormats() const;
+
+    /**
+     * @brief Capture multiple images from the video device. This is required
+     * in scenarios, like training the neural net for the first time.
+     */
+    std::vector<std::unique_ptr<ImageBuffer>> grab_multiple(const ImageFormat& format, int count) const;
+};
 
 std::vector<std::string> availableVideoDevices();
 #endif
