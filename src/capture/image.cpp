@@ -38,7 +38,7 @@ ImageBuffer::ImageBuffer(ImageBuffer &&other) noexcept
 
 const ImageFormat &ImageBuffer::getFormat() const { return format; }
 
-cv::Mat ImageBuffer::to_mat()
+cv::Mat ImageBuffer::to_mat() const
 {
     const void *data = this->getData();
     assert(data != nullptr);
@@ -51,6 +51,7 @@ cv::Mat ImageBuffer::to_mat()
 }
 
 const void *ImageBuffer::getData() const { return this->buffer.get(); }
+
 size_t ImageBuffer::getSize() const { return this->bufferSize; }
 
 std::unique_ptr<ImageBuffer> ImageBuffer::resizeTo(unsigned int newWidth, unsigned int newHeight) const
