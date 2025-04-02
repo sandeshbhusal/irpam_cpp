@@ -12,8 +12,8 @@ std::optional<cv::Mat> extract_face(const cv::Mat &input_image)
 
     // Prep + run NN
     auto detection_model = cv::dnn::readNetFromCaffe(
-        "models/modelproto.txt",
-        "models/res10_300x300_ssd_iter_140000_fp16.caffemodel");
+        "/opt/irpam/models/modelproto.txt",
+        "/opt/irpam/models/res10_300x300_ssd_iter_140000_fp16.caffemodel");
 
     detection_model.setInput(blob);
     auto detections = detection_model.forward();
@@ -62,12 +62,12 @@ std::optional<cv::Mat> extract_face(const cv::Mat &input_image)
 
 cv::Mat get_embedding(const cv::Mat &image)
 {
-    auto net = cv::dnn::readNetFromONNX("/home/sandesh/workspace/opencv-testing/arcfaceresnet100-11-int8.onnx");
+    auto net = cv::dnn::readNetFromONNX("/opt/irpam/models/arcfaceresnet100-11-int8.onnx");
     net.setInput(image);
     return net.forward("fc1");
 }
 
-bool are_similar(const cv::Mat &first, const cv::Mat &second)
+double get_similarity(const cv::Mat &first, const cv::Mat &second)
 {
     auto blob1 = cv::dnn::blobFromImage(first, 1.0 / 128.0, cv::Size(EMBEDDING_NET_WIDTH, EMBEDDING_NET_WIDTH));
     auto blob2 = cv::dnn::blobFromImage(second, 1.0 / 128.0, cv::Size(EMBEDDING_NET_WIDTH, EMBEDDING_NET_WIDTH));
@@ -80,5 +80,5 @@ bool are_similar(const cv::Mat &first, const cv::Mat &second)
     auto norm2 = cv::norm(embedding2);
 
     auto cosine_similarity = dot_product / (norm1 * norm2);
-    return cosine_similarity >= face_threshold;
+    return cosine_similarity;
 }

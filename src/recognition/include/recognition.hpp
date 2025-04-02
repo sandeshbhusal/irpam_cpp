@@ -18,11 +18,6 @@ const int DETECTION_NET_WIDTH = 300;
 const int EMBEDDING_NET_WIDTH = 112;
 const int EMBEDDING_WIDTH = 512;
 
-// Params for our model. These need to be put inside
-// `/etc/portapam/
-const float face_threshold = 0.85;
-const float similarity_threshold = 0.85;
-
 /**
  * @brief A detected face. This is used to store a position of a face among multiple
  * faces found in an image.
@@ -61,5 +56,5 @@ cv::Mat get_embedding(const cv::Mat &image);
  * @param second The second image.
  * @return true If they are similar.
  */
-bool are_similar(const cv::Mat &first, const cv::Mat &second);
+double get_similarity(const cv::Mat &first, const cv::Mat &second);
 #endif

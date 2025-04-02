@@ -58,11 +58,11 @@ VideoDevice::VideoDevice(const std::string &camera_path)
                 if (ioctl(fd, VIDIOC_TRY_FMT, &fmt) < 0)
                     throw std::runtime_error("Could not try format: " + std::string(strerror(errno)));
 
-                ImageFormat format = {
-                    .fourcc = fmtdesc.pixelformat,
-                    .width = frmsize.discrete.width,
-                    .height = frmsize.discrete.height,
-                    .buffersize = fmt.fmt.pix.sizeimage};
+                ImageFormat format = ImageFormat(
+                    fmtdesc.pixelformat,
+                    frmsize.discrete.width,
+                    frmsize.discrete.height,
+                    fmt.fmt.pix.sizeimage);
                 this->available_formats.push_back(format);
             }
             frmsize.index++;
@@ -84,12 +84,6 @@ std::vector<std::unique_ptr<ImageBuffer>> VideoDevice::grab_multiple(const Image
 {
     assert(this->fd > 0 && "File descriptor is invalid. Ensure the device is properly opened.");
     assert(count > 0 && "Count must be greater than 0. Ensure a valid number of frames is requested.");
-
-    if (this->is_ir)
-    {    
-        count *= 2; // Depending on the FPS, every other image seems to contain data.
-        // TODO: Remove this hard-coded multiplier and find a better way to handle IR camera FPSes.
-    }
 
     struct v4l2_format fmt = {};
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -172,11 +166,11 @@ std::vector<std::unique_ptr<ImageBuffer>> VideoDevice::grab_multiple(const Image
     rgbfmt.fmt.pix.bytesperline = set_width * 3;
     rgbfmt.fmt.pix.sizeimage = set_height * set_width * 3;
 
-    ImageFormat capturedImageFormat = {
-        .fourcc = V4L2_PIX_FMT_RGB24,
-        .width = rgbfmt.fmt.pix.width,
-        .height = rgbfmt.fmt.pix.height,
-        .buffersize = rgbfmt.fmt.pix.sizeimage};
+    ImageFormat capturedImageFormat = ImageFormat(
+        V4L2_PIX_FMT_RGB24,
+        rgbfmt.fmt.pix.width,
+        rgbfmt.fmt.pix.height,
+        rgbfmt.fmt.pix.sizeimage);
 
     std::vector<std::unique_ptr<ImageBuffer>> returnable_buffers;
     for (int i = 0; i < req.count; i++)

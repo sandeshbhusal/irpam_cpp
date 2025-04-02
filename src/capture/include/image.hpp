@@ -23,6 +23,22 @@ struct ImageFormat
     unsigned int height;
     size_t buffersize;
 
+    explicit ImageFormat(const char *fourcc, int width, int height, size_t buffersize)
+        : fourcc(v4l2_fourcc(fourcc[0], fourcc[1], fourcc[2], fourcc[3])),
+          width(width),
+          height(height),
+          buffersize(buffersize)
+    {
+    }
+
+    explicit ImageFormat(uint32_t fourcc, int width, int height, size_t buffersize)
+        : fourcc(fourcc),
+          width(width),
+          height(height),
+          buffersize(buffersize)
+    {
+    }
+
     const ImageFormat &getFormat();
     const void *getData();
     size_t getSize() const;
@@ -31,7 +47,7 @@ struct ImageFormat
 /**
  * @brief ImageBuffer represents a collection of raw bytes that define an image
  * with a specific color space format and resolution, as described by ImageFormat.
- * 
+ *
  * ImageBuffer can be converted to a cv::Mat which supports a lot of image-based operations.
  * This class should be deprecated in the future in favor of cv::Mat, but for now, since
  * opencv fails to find IR cameras and we have to rely on low-level v4l operations to capture

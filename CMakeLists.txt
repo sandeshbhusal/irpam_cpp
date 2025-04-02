@@ -3,6 +3,7 @@ project(irpam)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 enable_testing()
 
@@ -15,10 +16,18 @@ FetchContent_Declare(
     GIT_TAG        v2.x
     CMAKE_ARGS
         -DSPDLOG_BUILD_PIC=ON
-        -DBUILD_SHARED_LIBS=OFF
+        -DBUILD_SHARED_LIB=OFF
 )
 FetchContent_MakeAvailable(spdlog)
 set(SPDLOG_BUILD_SHARED ON CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    json
+    GIT_REPOSITORY  https://github.com/nlohmann/json
+    GIT_SHALLOW     TRUE
+    GIT_TAG         v3.11.3 
+)
+FetchContent_MakeAvailable(json)
 
 set(OPENCV_SUBMODULE_DIR "${CMAKE_SOURCE_DIR}/vendor/opencv")
 set(OPENCV_BUILD_DIR "${OPENCV_SUBMODULE_DIR}/build")
