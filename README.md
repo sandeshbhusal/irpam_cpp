@@ -19,3 +19,35 @@ Installation instructions may differ depending on your platform.
 - v4l libraries `sudo dnf install libv4l-devel`
 - pam-devel libraries `sudo dnf install pam-devel`
 
+## Using IRPam
+
+After you've built IRPam, the built `.so` artifact is in `build/src/lib/libirpam.so`.
+
+1. Copy the library to Pam Auth directory:
+
+```bash
+sudo cp src/lib/libirpam.so /usr/lib64/security/pam_libirpam_auth.so
+```
+
+2. Configure a `test` PAM configuration. All configurations for pam reside in `/etc/pam.d`.
+
+```bash
+echo "auth        required      pam_libirpam_auth.so" | sudo tee -a /etc/pam.d/irpam
+```
+
+3. Move the models from `src/recognition/models` to `/opt/irpam/models`
+
+```bash
+sudo mkdir -p /opt/irpam/models
+sudo cp src/recognition/models/* /opt/irpam/models
+```
+
+4. Capture a bunch of images of your face and put them in the `/opt/irpam/data/` directory. This will be automated in the coming commits.
+
+5. Test the configuration with `pamtester`. Installation directions for `pamtester` depend on your distro and are readily available online.
+
+```bash
+pamtester irpam <your-username> authenticate
+```
+
+Et voila!
