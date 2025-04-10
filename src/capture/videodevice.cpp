@@ -3,11 +3,9 @@
 #include <sys/mman.h>
 #include <string>
 
-#define BUF_REQ_COUNT 10;
-
 /**
  * The VideoDevice represents an open /dev/video* character device in the system.
- * 
+ *
  * When a VideoDevice is created, it first checks if the device is available. If so,
  * we query the capabilites to check if this is a camera. For a camera, all supported
  * image formats and their respective resolutions are enumerated and stored.
@@ -25,13 +23,14 @@ VideoDevice::VideoDevice(const std::string &camera_path)
     if (v4l2_ioctl(fd, VIDIOC_QUERYCAP, &this->cap) < 0)
         throw std::runtime_error("Failed to query camera caps: " + std::string(strerror(errno)));
 
-    if (!cap.capabilities & V4L2_BUF_CAP_SUPPORTS_MMAP) 
+    if (!cap.capabilities & V4L2_BUF_CAP_SUPPORTS_MMAP)
     {
         throw std::runtime_error("Camera does not support memory mapping. Userspace buffers are not implemented.");
     }
 
-    if (std::string(reinterpret_cast<const char*>(cap.card)).find("IR") != std::string::npos){
-        this -> is_ir = true;
+    if (std::string(reinterpret_cast<const char *>(cap.card)).find("IR") != std::string::npos)
+    {
+        this->is_ir = true;
     }
 
     if (!this->isCaptureDevice())
@@ -59,11 +58,11 @@ VideoDevice::VideoDevice(const std::string &camera_path)
                 if (ioctl(fd, VIDIOC_TRY_FMT, &fmt) < 0)
                     throw std::runtime_error("Could not try format: " + std::string(strerror(errno)));
 
-                ImageFormat format = {
-                    .fourcc = fmtdesc.pixelformat,
-                    .width = frmsize.discrete.width,
-                    .height = frmsize.discrete.height,
-                    .buffersize = fmt.fmt.pix.sizeimage};
+                ImageFormat format = ImageFormat(
+                    fmtdesc.pixelformat,
+                    frmsize.discrete.width,
+                    frmsize.discrete.height,
+                    fmt.fmt.pix.sizeimage);
                 this->available_formats.push_back(format);
             }
             frmsize.index++;
@@ -74,15 +73,18 @@ VideoDevice::VideoDevice(const std::string &camera_path)
 
 /**
  * Grab an image from the camera for the given image format.
- * 
+ *
  * The image format describes the pixel format, the height and width (resolution)
- * of the image, as well as the buffer size that the image is going to occupy in 
+ * of the image, as well as the buffer size that the image is going to occupy in
  * memory (see compressed pixel formats).
- * 
+ *
  * @returns A unique pointer to the image buffer containing the image data.
  */
-std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
+std::vector<std::unique_ptr<ImageBuffer>> VideoDevice::grab_multiple(const ImageFormat &format, int count = 1) const
 {
+    assert(this->fd > 0 && "File descriptor is invalid. Ensure the device is properly opened.");
+    assert(count > 0 && "Count must be greater than 0. Ensure a valid number of frames is requested.");
+
     struct v4l2_format fmt = {};
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     fmt.fmt.pix.width = format.width;
@@ -101,31 +103,34 @@ std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
     uint32_t set_height = fmt.fmt.pix.height;
     uint32_t set_fourcc = fmt.fmt.pix.pixelformat;
 
-    struct v4l2_requestbuffers req = {};
-    // If we are working with IR cameras, we need a bunch of frames before
-    // we can actually get data (probably). Since RGB cameras normally have FPS ~15+
-    // this should not impact them?.
-    req.count = BUF_REQ_COUNT;
-    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    req.memory = V4L2_MEMORY_MMAP;
+    // Request N buffers.
+    struct v4l2_requestbuffers req = {
+        .count = static_cast<uint32_t>(count),
+        .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+        .memory = V4L2_MEMORY_MMAP};
+
     if (v4l2_ioctl(fd, VIDIOC_REQBUFS, &req) < 0)
     {
         throw std::runtime_error("Could not request buffers: " + std::string(strerror(errno)));
     }
 
-    struct v4l2_buffer buf = {};
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    buf.memory = V4L2_MEMORY_MMAP;
-    buf.index = 0;
+    // We queue a bunch of buffers. The buffer indexes increase serially.
+    void *buffers[req.count];
+    for (int i = 0; i < req.count; i++)
+    {
+        struct v4l2_buffer buf = {
+            .index = static_cast<uint32_t>(i),
+            .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+            .memory = V4L2_MEMORY_MMAP,
+        };
 
-    // We queue a bunch of buffers.
-    void* buffers[req.count];
-    for (int i = 0; i < req.count; i++) {
-        buf.index = i;
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        buf.memory = V4L2_MEMORY_MMAP;
+        // Query buffer to populate buf.m.offset
+        if (v4l2_ioctl(fd, VIDIOC_QUERYBUF, &buf) < 0)
+        {
+            throw std::runtime_error("Could not query buffer: " + std::string(strerror(errno)));
+        }
 
-        buffers[i] = v4l2_mmap(nullptr, fmt.fmt.pix.sizeimage, PROT_READ | PROT_WRITE, MAP_SHARED, fd, buf.m.offset); 
+        buffers[i] = v4l2_mmap(nullptr, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, buf.m.offset);
 
         if (buffers[i] == MAP_FAILED)
         {
@@ -134,64 +139,19 @@ std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
 
         if (v4l2_ioctl(fd, VIDIOC_QBUF, &buf) < 0)
         {
-            v4l2_munmap(buffers[i], fmt.fmt.pix.sizeimage);
+            v4l2_munmap(buffers[i], buf.length);
             throw std::runtime_error("Could not queue buffer: " + std::string(strerror(errno)));
         }
     }
 
-    auto buf_type = buf.type;
+    auto buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (v4l2_ioctl(fd, VIDIOC_STREAMON, &buf_type) < 0)
     {
         throw std::runtime_error("Could not start streaming: " + std::string(strerror(errno)));
     }
 
-    void *buffer_used = nullptr;
-    for (int i = 0; i < req.count; i++)
-    {
-        buf.index = i;
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        buf.memory = V4L2_MEMORY_MMAP;
-
-        if (v4l2_ioctl(fd, VIDIOC_DQBUF, &buf) < 0)
-        {
-            throw std::runtime_error("Could not dequeue buffer: " + std::string(strerror(errno)));
-        }
-
-        // The normal camera takes a while for the exposure, brightness, etc. to be stable.
-        // There's better ways to do this, probably :)
-        if (!this->is_ir && i < 8) {
-            continue;
-        }
-
-        // Check if buffer contains any data (anything other than 0).
-        // If so, set the found_data flag, and break out of the loop.
-        // Use that buffer.
-        if (buf.bytesused > 0)
-        {
-            buffer_used = buffers[i];
-            break;
-        }
-    }
-
-    if (buffer_used == nullptr) {
-        throw std::runtime_error("No data in buffer even after attempts" + req.count);
-    }
-
-    v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf_type);
-
-    void* buffer;
-    for (int i = 0; i < req.count; i++)
-    {
-        if (i != buf.index)
-        {
-            munmap(buffers[i], fmt.fmt.pix.sizeimage);
-        } else {
-            buffer = buffers[i];
-        }
-    }
-
-    // Convert everything int a RGB24 image for feeding into the neural net.
-    // NOTE: TODO: WARN: This should be removed if using this code in a different context.
+    // Setup for converting image data to RGB. We convert everything to a
+    // 3-channel RGB for feeding into the NN.
     struct v4lconvert_data *convert_ctx = v4lconvert_create(fd);
     if (!convert_ctx)
     {
@@ -200,54 +160,88 @@ std::unique_ptr<ImageBuffer> VideoDevice::grab(const ImageFormat &format) const
 
     struct v4l2_format rgbfmt = {};
     rgbfmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    rgbfmt.fmt.pix.width = set_width; // We cannot use "format" here because it's a suggestion only.
+    rgbfmt.fmt.pix.width = set_width;
     rgbfmt.fmt.pix.height = set_height;
     rgbfmt.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
     rgbfmt.fmt.pix.bytesperline = set_width * 3;
     rgbfmt.fmt.pix.sizeimage = set_height * set_width * 3;
 
-    auto rgb_buffer = std::make_unique<char[]>(rgbfmt.fmt.pix.sizeimage);
-    if (v4lconvert_convert(convert_ctx, &fmt, &rgbfmt, static_cast<unsigned char *>(buffer), buf.bytesused, reinterpret_cast<unsigned char *>(rgb_buffer.get()), rgbfmt.fmt.pix.sizeimage) < 0)
+    ImageFormat capturedImageFormat = ImageFormat(
+        V4L2_PIX_FMT_RGB24,
+        rgbfmt.fmt.pix.width,
+        rgbfmt.fmt.pix.height,
+        rgbfmt.fmt.pix.sizeimage);
+
+    std::vector<std::unique_ptr<ImageBuffer>> returnable_buffers;
+    for (int i = 0; i < req.count; i++)
     {
-        v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf_type);
-        v4l2_munmap(buffer, buf.length);
-        throw std::runtime_error("Could not convert buffer: " + std::string(strerror(errno)));
+        struct v4l2_buffer buf = {
+            .index = static_cast<uint32_t>(i), // Use the index to dequeue the buffer
+            .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+            .memory = V4L2_MEMORY_MMAP,
+        };
+
+        if (v4l2_ioctl(fd, VIDIOC_DQBUF, &buf) < 0)
+        {
+            throw std::runtime_error("Could not dequeue buffer: " + std::string(strerror(errno)));
+        }
+
+        // Check if buffer contains any data (anything other than 0).
+        // If so, set the found_data flag, and break out of the loop.
+        // Use that buffer.
+        if (buf.bytesused > 0 && buffers[i] != nullptr)
+        {
+            void *buffer = buffers[i % req.count];
+
+            auto rgb_buffer = std::make_unique<char[]>(rgbfmt.fmt.pix.sizeimage);
+            if (v4lconvert_convert(convert_ctx, &fmt, &rgbfmt, static_cast<unsigned char *>(buffer), buf.bytesused, reinterpret_cast<unsigned char *>(rgb_buffer.get()), rgbfmt.fmt.pix.sizeimage) < 0)
+            {
+                v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf_type);
+                v4l2_munmap(buffer, buf.length);
+                throw std::runtime_error("Could not convert buffer: " + std::string(strerror(errno)));
+            }
+
+            returnable_buffers.push_back(std::make_unique<ImageBuffer>(
+                rgb_buffer.release(),
+                rgbfmt.fmt.pix.sizeimage,
+                capturedImageFormat));
+
+            spdlog::info("Captured buffer# " + i);
+            munmap(buffer, buf.bytesused);
+        }
+        else
+        {
+            spdlog::warn("Could not dequeue a buffer");
+        }
     }
 
     v4lconvert_destroy(convert_ctx);
 
     if (v4l2_ioctl(fd, VIDIOC_STREAMOFF, &buf_type) < 0)
     {
-        v4l2_munmap(buffer, buf.length);
         throw std::runtime_error("Could not stop streaming: " + std::string(strerror(errno)));
     }
 
-    v4l2_munmap(buffer, buf.length);
-
     struct v4l2_requestbuffers req_free = {};
-    req_free.count = 0;
+    req_free.count = count;
     req_free.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req_free.memory = V4L2_MEMORY_MMAP;
     if (v4l2_ioctl(fd, VIDIOC_REQBUFS, &req_free) < 0)
     {
-        throw std::runtime_error("Could not free buffers: " + std::string(strerror(errno)));
+        spdlog::error("Could not free buffers: " + std::string(strerror(errno)));
     }
 
-    ImageFormat capturedImageFormat = {
-        .fourcc = V4L2_PIX_FMT_RGB24,
-        .width = rgbfmt.fmt.pix.width,
-        .height = rgbfmt.fmt.pix.height,
-        .buffersize = rgbfmt.fmt.pix.sizeimage};
+    return returnable_buffers;
+}
 
-    return std::make_unique<ImageBuffer>(
-        rgb_buffer.release(),
-        rgbfmt.fmt.pix.sizeimage,
-        capturedImageFormat);
+const std::vector<ImageFormat> VideoDevice::getAvailableFormats() const
+{
+    return this->available_formats;
 }
 
 /**
  * Check if the device is a capture device.
- * 
+ *
  * @returns `true` if the device is a camera, `false` otherwise.
  */
 bool VideoDevice::isCaptureDevice() const
@@ -261,7 +255,7 @@ bool VideoDevice::isCaptureDevice() const
 
 /**
  * Get the path of the camera device.
- * 
+ *
  * @returns The path of the camera device, like `/dev/video0`.
  */
 const std::string VideoDevice::getPath() const
@@ -271,7 +265,7 @@ const std::string VideoDevice::getPath() const
 
 /**
  * Destructor for the VideoDevice class.
- * 
+ *
  * When the VideoDevice is destroyed, we close the file descriptor
  * to the camera device, if it is open.
  */
@@ -286,9 +280,9 @@ const std::string VideoDevice::getPath() const
 // }
 
 /**
- * Enumerate all available /dev/video* paths in the system. This is a naiive way to
+ * @brief Enumerate all available /dev/video* paths in the system. This is a naiive way to
  * enumerate all cameras, but I think it should work for most systems (at least those I've encountered :)
- * 
+ *
  * @returns A vector of strings containing the paths to all available cameras.
  */
 std::vector<std::string> availableVideoDevices()
